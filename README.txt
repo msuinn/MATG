@@ -1,1 +1,0 @@
-UCSC senior design project, 2016-2017. Implementing face tracking using Intel R200 Developer Kit. 
