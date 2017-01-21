@@ -1,0 +1,1 @@
+Just a folder where I am going to keep various bits of code while I test stuff out. Feel free to add stuff of your own, just try and keep each project as its own separate folder and keep a dedicated README for each, just so people know what is going on. 
