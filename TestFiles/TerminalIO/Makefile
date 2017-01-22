@@ -15,4 +15,4 @@ hellomake : $(OBJECTS)
 
 #Remove the executables
 clean : 
-	rm $(OUTPUTNAME)
+	rm $(OUTPUTNAME) $(OBJECTS)

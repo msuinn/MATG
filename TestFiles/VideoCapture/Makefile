@@ -11,8 +11,8 @@ OBJECTS = VidTest.o
 
 #If any of the objects was changed, see above, remake exe
 hellomake : $(OBJECTS)
-	g++ -Wall -Wextra $(SOURCEFILES) -o $(OUTPUTNAME)
+	g++ -Wall -Wextra $(SOURCEFILES) -o $(OUTPUTNAME) `pkg-config opencv --cflags --libs`
 
 #Remove the executables
 clean : 
-	rm $(OUTPUTNAME)
+	rm $(OUTPUTNAME) $(OBJECTS)
