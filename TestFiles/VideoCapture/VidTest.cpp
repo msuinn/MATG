@@ -5,8 +5,6 @@ using namespace cv;
 using namespace std;
 
 int main(int, char**){
-	cout << "Video?" << endl;
-	
 	//Camera 0 is the green one, 1 is possibly depth, 2 is normal vision
 	//Camera 3+ is invalid
 	VideoCapture capture(2);
@@ -20,8 +18,8 @@ int main(int, char**){
 		return(-1);
 	}
 
-	//Create a window named "Video" that is resizeable
-	namedWindow("Video", WINDOW_NORMAL);
+	//Create a window named "Video" that isn't resizeable
+	namedWindow("Video", 1);
 	while(1){
 		
 		//Grab a frame
