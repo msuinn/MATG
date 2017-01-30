@@ -12,22 +12,20 @@ using namespace cv;
 using namespace std;
 
 int main(int, char**) try{
-	//cout << "DepthMat" << endl;
 
 	//OpenCV Mat initialization
 	const int matSize[2]={480,640};
 
-	cv::Mat d = Mat::zeros(2,matSize,CV_64F);
+	Mat d = Mat::zeros(2,matSize,CV_64F);
 
 	Mat c = Mat::zeros(2,matSize,CV_64FC3);
 
-	namedWindow("depth",1);	
+	namedWindow("depth",1);
+	namedWindow("Test", 1);	
 
-	imshow("depth", d);
+	Mat adjMap;
 
-	//Mat adjMap;
-
-	//double min, max;
+	//double min = 0, max = 0;
 
 	// Create a context object. This object owns the handles to all connected realsense devices.
     	rs::context ctx;
@@ -52,53 +50,58 @@ int main(int, char**) try{
 	while(true){
         // This call waits until a new coherent set of frames is available on a device
         // Calls to get_frame_data(...) and get_frame_timestamp(...) on a device will return stable 		values until wait_for_frames(...) is called
-        dev->wait_for_frames();
+        	dev->wait_for_frames();
 
-        // Retrieve depth data, which was previously configured as a 640 x 480 image of 16-bit depth 		values
-        const uint16_t * depth_frame = reinterpret_cast<const uint16_t *>
-		(dev->get_frame_data(rs::stream::depth));
+        	// Retrieve depth data, which was previously configured as a 640 x 480 image of 
+		// 16-bit depth values
+        	const uint16_t * depth_frame = reinterpret_cast<const uint16_t *>
+			(dev->get_frame_data(rs::stream::depth));
 
-	const uint16_t * color_frame = reinterpret_cast<const uint16_t *>
-		(dev->get_frame_data(rs::stream::color));
+		const uint16_t * color_frame = reinterpret_cast<const uint16_t *>
+			(dev->get_frame_data(rs::stream::color));
 
 		
-	for(int y=0; y<480; ++y)
-        {
-            for(int x=0; x<640; ++x)
-            {		                
-		int depth = *depth_frame++;
-		d.at<double>(y,x) = depth;
+		Mat test(2, matSize, CV_16U, (uchar *) dev->get_frame_data(rs::stream::depth));
+		Mat depth8u = test;
+		depth8u.convertTo(depth8u, CV_8UC1, 255.0/1000);
+		applyColorMap(depth8u, adjMap, COLORMAP_RAINBOW);
+		imshow("Test", adjMap);
 
-		int color = *color_frame++; //The color channels are going wrong around here
-		c.at<double>(y,x) = color;
-            }
+		
+		for(int y=0; y<480; ++y){
+            		for(int x=0; x<640; ++x){		                
+				int depth = *(depth_frame++);
+				d.at<double>(y,x) = depth;
 
-            
-        }
+				int color = *color_frame++; //Color error?
+				c.at<double>(y,x) = color;
+           		}
+        	}
+		
     
-	/////////////////////////commented code for heat mapping	
-	//minMaxIdx(d, &min,&max);
-	//convertScaleAbs(d,adjMap,255/max);
-	//d.convertTo(adjMap,CV_8UC1);	
+		/////////////////////////commented code for heat mapping	
+		//minMaxIdx(d, &min,&max);
+		//convertScaleAbs(d,adjMap,255/max);
+		//d.convertTo(adjMap,CV_8UC1);	
 	
-	//cout << "this is the depth" << d.at<double>(200,200) << endl;	
-	//Mat fCM;
-	//applyColorMap(adjMap, fCM, COLORMAP_RAINBOW);
-
-	//imshow("depth", adjMap);
+		//cout << "this is the depth" << d.at<double>(200,200) << endl;	
+		//Mat fCM;
+		//applyColorMap(adjMap, fCM, COLORMAP_RAINBOW);
 	
-	//imshow("colors", fCM);
-	/////////////////////////////////////////////////////////////	
+		//imshow("depth", adjMap);
+		
+		//imshow("colors", fCM);
+		/////////////////////////////////////////////////////////////	
 
-	imshow("depth", d);
-	imshow("color", c);
+		//imshow("depth", d);
+		//imshow("color", c);
 
-	if(waitKey(30) == 'c'){
+		if(waitKey(30) == 'c'){
 			break;
 		}
 	
 
-}	
+	}	
 	
 
 	return(0);
