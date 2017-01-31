@@ -16,16 +16,10 @@ int main(int, char**) try{
 	//OpenCV Mat initialization
 	const int matSize[2]={480,640};
 
-	Mat d = Mat::zeros(2,matSize,CV_64F);
+	//Create the windows
+	namedWindow("Depth", 1);
+	namedWindow("Color", 1);	
 
-	Mat c = Mat::zeros(2,matSize,CV_64FC3);
-
-	namedWindow("depth",1);
-	namedWindow("Test", 1);	
-
-	Mat adjMap;
-
-	//double min = 0, max = 0;
 
 	// Create a context object. This object owns the handles to all connected realsense devices.
     	rs::context ctx;
@@ -52,49 +46,28 @@ int main(int, char**) try{
         // Calls to get_frame_data(...) and get_frame_timestamp(...) on a device will return stable 		values until wait_for_frames(...) is called
         	dev->wait_for_frames();
 
-        	// Retrieve depth data, which was previously configured as a 640 x 480 image of 
-		// 16-bit depth values
-        	const uint16_t * depth_frame = reinterpret_cast<const uint16_t *>
-			(dev->get_frame_data(rs::stream::depth));
-
-		const uint16_t * color_frame = reinterpret_cast<const uint16_t *>
-			(dev->get_frame_data(rs::stream::color));
+		
+		//Depth
+		//Retrieve the depth frame from camera and place in new Mat
+		Mat depth(2, matSize, CV_16U, (uchar *) dev->get_frame_data(rs::stream::depth));
+		//Compress down to uchar with one channel only for depth
+		depth.convertTo(depth, CV_8UC1, 255.0/1000);
+		//Apply color map depending on the depth value
+		applyColorMap(depth, depth, COLORMAP_RAINBOW);
 
 		
-		Mat test(2, matSize, CV_16U, (uchar *) dev->get_frame_data(rs::stream::depth));
-		Mat depth8u = test;
-		depth8u.convertTo(depth8u, CV_8UC1, 255.0/1000);
-		applyColorMap(depth8u, adjMap, COLORMAP_RAINBOW);
-		imshow("Test", adjMap);
+		//Color
+		//Retrieve the color frame from camera and place in new Mat
+		Mat color(2, matSize, CV_8UC3, (uchar *) dev->get_frame_data(rs::stream::color));
+		//Convert color encoding so picutre makes sense
+		cvtColor(color, color, COLOR_BGR2RGB);
 
 		
-		for(int y=0; y<480; ++y){
-            		for(int x=0; x<640; ++x){		                
-				int depth = *(depth_frame++);
-				d.at<double>(y,x) = depth;
 
-				int color = *color_frame++; //Color error?
-				c.at<double>(y,x) = color;
-           		}
-        	}
+		//Show both of the views
+		imshow("Depth", depth);
+		imshow("Color", color);
 		
-    
-		/////////////////////////commented code for heat mapping	
-		//minMaxIdx(d, &min,&max);
-		//convertScaleAbs(d,adjMap,255/max);
-		//d.convertTo(adjMap,CV_8UC1);	
-	
-		//cout << "this is the depth" << d.at<double>(200,200) << endl;	
-		//Mat fCM;
-		//applyColorMap(adjMap, fCM, COLORMAP_RAINBOW);
-	
-		//imshow("depth", adjMap);
-		
-		//imshow("colors", fCM);
-		/////////////////////////////////////////////////////////////	
-
-		//imshow("depth", d);
-		//imshow("color", c);
 
 		if(waitKey(30) == 'c'){
 			break;
