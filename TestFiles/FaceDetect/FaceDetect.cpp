@@ -147,10 +147,6 @@ void detectAndDisplay( Mat color )
 void detectAndDisplay2( Mat ir )
 {
   	std::vector<Rect> faces;
-  	//Mat frame_gray;
-
-  	//cvtColor( color, frame_gray, CV_BGR2GRAY );
-  	//equalizeHist( frame_gray, frame_gray );
 
   	//-- Detect faces
   	face_cascade.detectMultiScale( ir, faces, 1.1, 2, 0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
@@ -173,8 +169,6 @@ void detectAndDisplay2( Mat ir )
        			circle( ir, center, radius, Scalar( 255, 0, 0 ), 4, 8, 0 );
      		}
   	}
-  	//-- Show what you got
-  	//imshow( window_name, color );
 }
 
 

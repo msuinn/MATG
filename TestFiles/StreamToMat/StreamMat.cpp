@@ -20,7 +20,6 @@ int main(int, char**) try{
 	namedWindow("Depth", 1);
 	namedWindow("Color", 1);	
 
-
 	// Create a context object. This object owns the handles to all connected realsense devices.
     	rs::context ctx;
     	printf("There are %d connected RealSense devices.\n", ctx.get_device_count());
@@ -41,12 +40,10 @@ int main(int, char**) try{
 
     	dev->start();
 
-
 	while(true){
         // This call waits until a new coherent set of frames is available on a device
         // Calls to get_frame_data(...) and get_frame_timestamp(...) on a device will return stable 		values until wait_for_frames(...) is called
         	dev->wait_for_frames();
-
 		
 		//Depth
 		//Retrieve the depth frame from camera and place in new Mat
@@ -55,7 +52,6 @@ int main(int, char**) try{
 		depth.convertTo(depth, CV_8UC1, 255.0/1000);
 		//Apply color map depending on the depth value
 		applyColorMap(depth, depth, COLORMAP_RAINBOW);
-
 		
 		//Color
 		//Retrieve the color frame from camera and place in new Mat
@@ -65,31 +61,24 @@ int main(int, char**) try{
 
 		//Infrared
 		//Retrieve the infrared frame from camera and place in new Mat
-		Mat ir(2, matSize, CV_8U, (uchar *) dev->get_frame_data(rs::stream::infrared));
-		
+		Mat ir(2, matSize, CV_8U, (uchar *) dev->get_frame_data(rs::stream::infrared));		
 
 		//Show both of the views
 		imshow("Depth", depth);
 		imshow("Color", color);
 		imshow("IR", ir);
 		
-
 		if(waitKey(30) == 'c'){
 			break;
 		}
-	
-
 	}	
-	
-
 	return(0);
-
 }
 
 catch(const rs::error & e)
 {
-    // Method calls against librealsense objects may throw exceptions of type rs::error
-    printf("rs::error was thrown when calling %s(%s):\n", e.get_failed_function().c_str(), e.get_failed_args().c_str());
-    printf("    %s\n", e.what());
-    return EXIT_FAILURE;
+    	// Method calls against librealsense objects may throw exceptions of type rs::error
+    	printf("rs::error was thrown when calling %s(%s):\n", e.get_failed_function().c_str(), e.get_failed_args().c_str());
+    	printf("    %s\n", e.what());
+    	return EXIT_FAILURE;
 }
