@@ -35,6 +35,12 @@ int main(int, char**) try{
 	vector<Rect> faces;
 	Mat frame_gray;
 
+	int faceX = 0;
+	int faceY = 0;
+	double angleX = 0.0;
+	double angleY = 0.0;
+	double dist = 0.0; 
+
 	//Create the windows
 	namedWindow("Color", 1);
 
@@ -98,11 +104,19 @@ int main(int, char**) try{
     			Point faceCenter( faces[i].x + faces[i].width*0.5, 
 				faces[i].y + faces[i].height*0.5 );
 			arrowedLine(color, center, faceCenter, Scalar( 94, 206, 165), 5);
-			cout << "Center " << faceCenter << endl;
+			
+			faceX = (faces[i].x + faces[i].width*0.5) - 320;
+			faceY = (faces[i].y + faces[i].height*0.5) - 240;			
 
-			cout << "Depth " << 
-				dpt.at<unsigned int16_t>(faceCenter.y, faceCenter.x)
-				<< endl;
+			//printf("faceX: %d faceY: %d\n", faceX, faceY);
+
+			angleX = faceX * 0.109375;//convert position on X axis to angle of deflection from center point
+			angleY = faceY * 0.089583 * -1;//convert position on Y axis to angle of deflection from center point							
+			dist = dpt.at<unsigned int16_t>(faceCenter.y+ faces[i].height*0.5, faceCenter.x + faces[i].width*0.5);
+			//~820 @ 32"
+			
+			printf("angleX: %f angleY: %f dist: %f\n", angleX, angleY, dist);
+
 		}
 
 		
