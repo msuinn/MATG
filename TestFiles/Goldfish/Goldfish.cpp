@@ -14,9 +14,7 @@ using namespace std;
 
  /** Global variables */
  String face_cascade_name = "haarcascade_frontalface_alt.xml";
- String eyes_cascade_name = "haarcascade_eye_tree_eyeglasses.xml";
  CascadeClassifier face_cascade;
- CascadeClassifier eyes_cascade;
  string window_name = "Capture - Face detection";
  RNG rng(12345);
  //Mat dpt;
@@ -25,7 +23,6 @@ int main(int, char**) try{
 
 	//-- 1. Load the cascades
    	if( !face_cascade.load( face_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };
-   	if( !eyes_cascade.load( eyes_cascade_name ) ){ printf("--(!)Error loading\n"); return -1; };	
 
 	//Variables
 	const int matSize[2]={480,640};
@@ -61,10 +58,8 @@ int main(int, char**) try{
 
     	// Configure depth to run at VGA resolution at 30 frames per second
     	dev->enable_stream(rs::stream::depth, 640, 480, rs::format::z16, 60);
-		dev->enable_stream(rs::stream::color, 640, 480, rs::format::rgb8, 60); // low res
-		//dev->enable_stream(rs::stream::color, 1920, 1080, rs::format::rgb8, 30); // high res
-		//dev->enable_stream(rs::stream::infrared, 640, 480, rs::format::y8, 60);
-
+	dev->enable_stream(rs::stream::color, 640, 480, rs::format::rgb8, 60); // low res
+		
     	dev->start();
 
 	while(true){
@@ -78,17 +73,13 @@ int main(int, char**) try{
 		Mat dpt(depth);		
 		//Compress down to uchar with one channel only for depth
 		depth.convertTo(depth, CV_8UC1, 255.0/1000);
-		//Apply color map depending on the depth value
-		//applyColorMap(depth, depth, COLORMAP_RAINBOW);
 		
 		//Color
 		//Retrieve the color frame from camera and place in new Mat
 		Mat color(2, matSize, CV_8UC3, (uchar *) dev->get_frame_data(rs::stream::color)); //low res
-		//Mat color(2, matSize2, CV_8UC3, (uchar *) dev->get_frame_data(rs::stream::color)); //high res
+		
 		//Convert color encoding so picutre makes sense
 		cvtColor(color, color, COLOR_BGR2RGB);
-
-
 
 		//Convert to gray for face detection function
 		cvtColor( color, frame_gray, CV_BGR2GRAY );
@@ -138,9 +129,7 @@ int main(int, char**) try{
 			printf("LoopCount: %d RESET\n", loopCount);
 			loopCount = 0;
 			loopCount2 = 0;
-		}
-		
-		
+		}	
 		
 		//Show image with arrow
 		imshow("Color", color);
