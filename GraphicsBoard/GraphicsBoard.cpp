@@ -9,6 +9,12 @@ using namespace cv;
 using namespace std;
 
 
+typedef struct Vector{
+	float angle;
+	float magnitude;
+}Vector; 
+
+
 int main(int, char**) try{
 	//haarcascade variables
 	String face_cascade_name = "haarcascade_frontalface_alt.xml";
@@ -23,7 +29,8 @@ int main(int, char**) try{
 	Mat frame_gray;
 	rs::context rsCtx;
 	namedWindow("Color", 1);
-	float mag, theta;
+	bool faceFound = false;
+	
 
 	//usb variables
 	libusb_device **devs;
@@ -37,8 +44,8 @@ int main(int, char**) try{
 	const int pid = 67;
 	//The interface ID, chosen as this one has 2 endpoints
 	const int iid = 1;
-	//Max size of each data transfer
-	const int dataSize = 6;
+	//Max size of read data transfer
+	const int dataSize = 1;
 	//Data pointer for transfer
 	unsigned char *data = new unsigned char[dataSize];
 	//Which interface endpoint to use, found in EP Address field
@@ -47,6 +54,10 @@ int main(int, char**) try{
 	const int inEp = 131;
 	//How many bytes are written in bulk transfer
 	int bytesWritten = 0;
+	//Data to send
+	Vector dataStruct;
+	//Pointer to data to send
+	unsigned char *structPtr;
 
 
 
@@ -159,17 +170,36 @@ int main(int, char**) try{
 		//For each face, find the center and draw an arrow from center to face
 		//Also print out the matching pixel depth from depth stream
 		for( size_t i = 0; i < faces.size(); i++ ){
+			faceFound = true;
     			Point faceCenter( faces[i].x + faces[i].width*0.5, 
 				faces[i].y + faces[i].height*0.5 );
 			arrowedLine(color, center, faceCenter, Scalar( 94, 206, 165), 5);
 		}
 
-		//Calculate the vector components
-		mag = sqrtf((faces[0].x - center.x)^2 + (faces[0].y - center.y)^2);
-		theta = atan2f(faces[0].y - center.y, faces[0].x - center.x);
 		
 
+		//Send the data if there was a face, otherwise nothing
+		if(faceFound){
+			faceFound = false;
 
+			//Calculate the vector components
+			dataStruct.magnitude = sqrtf(((faces[0].x - center.x)^2) + 
+				((faces[0].y - center.y)^2));
+			dataStruct.angle = atan2f(faces[0].y - center.y, faces[0].x - center.x);
+
+			//Cast data pointer to expected type
+			structPtr = reinterpret_cast<unsigned char *>(&dataStruct);
+
+			//Write the data
+			retVal = libusb_bulk_transfer(dev_handle, (epAddr | LIBUSB_ENDPOINT_OUT), 					structPtr, sizeof(Vector), &bytesWritten, 0);
+			if(retVal == 0 && bytesWritten == sizeof(Vector)){
+				cout << "Write successful" << endl;
+			} else{
+				cout << "Write failed" << endl;
+			}
+		}
+		
+	
 		//Show the frame, not actually important
 		imshow("Color", color);
 		
