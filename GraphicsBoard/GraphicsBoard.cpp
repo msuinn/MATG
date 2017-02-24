@@ -216,7 +216,9 @@ int main(int, char**) try{
 	}
 	
 
-	//Clean up
+	/*******************************************************
+		    	    Clean Up
+	*******************************************************/
 	//For whatever reasone, this is the only clean up that can fail
 	retVal = libusb_release_interface(dev_handle, 1);
 	if(retVal!=0) {
