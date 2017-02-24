@@ -113,7 +113,9 @@ int main(int, char**) try{
 		cout << "Cannot open communication with board" << endl;
 	}
 
-
+	//Free the device list, it is no longer needed
+	libusb_free_device_list(devs, 1);
+	
 
 	//Check for a kernal driver attached to device
 	//If a driver is attached, interface cannot be claimed and no IO
@@ -147,6 +149,7 @@ int main(int, char**) try{
 		}
 		cout << "Read: " << data[0] << endl;
 	}
+	delete[] data;
 
 
 
@@ -166,7 +169,6 @@ int main(int, char**) try{
 		face_cascade.detectMultiScale( frame_gray, faces, 1.1, 2, 
 			0|CV_HAAR_SCALE_IMAGE, Size(30, 30) );
 
-
 		//For each face, find the center and draw an arrow from center to face
 		//Also print out the matching pixel depth from depth stream
 		for( size_t i = 0; i < faces.size(); i++ ){
@@ -176,27 +178,32 @@ int main(int, char**) try{
 			arrowedLine(color, center, faceCenter, Scalar( 94, 206, 165), 5);
 		}
 
-		
 
 		//Send the data if there was a face, otherwise nothing
 		if(faceFound){
 			faceFound = false;
 
+			//Reorient coordinates with 0 at center, not sure why there is 
+			//Correction of 80 though
+			faces[0].x -= (center.x - 80);
+			faces[0].y -= (center.y - 80);
+
 			//Calculate the vector components
-			dataStruct.magnitude = sqrtf(((faces[0].x - center.x)^2) + 
-				((faces[0].y - center.y)^2));
-			dataStruct.angle = atan2f(faces[0].y - center.y, faces[0].x - center.x);
+			dataStruct.magnitude = sqrtf((faces[0].x * faces[0].x) + 
+				(faces[0].y * faces[0].y));
+			dataStruct.angle = -((dataStruct.magnitude == 0) ? 0:
+				(faces[0].x == 0 && faces[0].y > 0) ? M_PI / 2:
+				(faces[0].x == 0 && faces[0].y < 0) ? -M_PI / 2:
+				atan2f(faces[0].y, faces[0].x));
 
 			//Cast data pointer to expected type
 			structPtr = reinterpret_cast<unsigned char *>(&dataStruct);
 
 			//Write the data
 			retVal = libusb_bulk_transfer(dev_handle, (epAddr | LIBUSB_ENDPOINT_OUT), 					structPtr, sizeof(Vector), &bytesWritten, 0);
-			if(retVal == 0 && bytesWritten == sizeof(Vector)){
-				cout << "Write successful" << endl;
-			} else{
+			if(retVal != 0 || bytesWritten != sizeof(Vector)){
 				cout << "Write failed" << endl;
-			}
+			} 
 		}
 		
 	
@@ -208,6 +215,19 @@ int main(int, char**) try{
 		}
 	}
 	
+
+	//Clean up
+	//For whatever reasone, this is the only clean up that can fail
+	retVal = libusb_release_interface(dev_handle, 1);
+	if(retVal!=0) {
+		cout << "Cannot release interface" << endl;
+		return(1);
+	}
+	
+	//All these guys are void
+	libusb_close(dev_handle);
+	libusb_exit(ctx);
+
 
 	return(0);
 }
