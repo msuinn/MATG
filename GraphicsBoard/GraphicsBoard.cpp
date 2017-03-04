@@ -8,11 +8,36 @@
 using namespace cv;
 using namespace std;
 
-
+//Message format
 typedef struct Vector{
 	float angle;
 	float magnitude;
 }Vector; 
+
+//Enum for return codes due to errors/normal execution
+enum ReturnCodes{
+	NO_ERROR = 0,
+	ERROR_LOAD_CASCADE,
+	ERROR_NO_RS_DEVICES,
+	ERROR_INIT_USB,
+	ERROR_NO_USB_DEVICES,
+	ERROR_OPEN_USB,
+	ERROR_CLAIM_INTERFACE,
+	ERROR_RS_ERROR
+};
+
+
+//Global variables, for now
+const int dataSize = 1;
+//Data pointer for transfer
+unsigned char *data = new unsigned char[dataSize];
+libusb_device **devs;
+libusb_context *ctx = NULL;
+libusb_device_handle *dev_handle;
+
+
+//Function prototypes
+void cleanup(int retCode);
 
 
 int main(int, char**) try{
@@ -33,9 +58,7 @@ int main(int, char**) try{
 	
 
 	//usb variables
-	libusb_device **devs;
-	libusb_context *ctx = NULL;
-	libusb_device_handle *dev_handle;
+
 	int retVal;
 	ssize_t cnt;
 	//Vendor ID of the device, should change per board
@@ -44,10 +67,8 @@ int main(int, char**) try{
 	const int pid = 67;
 	//The interface ID, chosen as this one has 2 endpoints
 	const int iid = 1;
-	//Max size of read data transfer
-	const int dataSize = 1;
-	//Data pointer for transfer
-	unsigned char *data = new unsigned char[dataSize];
+	
+	
 	//Which interface endpoint to use, found in EP Address field
 	const int epAddr = 4;
 	//The address of the read endpoint
@@ -66,14 +87,15 @@ int main(int, char**) try{
 	*******************************************************/
 	//Load the cascades
    	if( !face_cascade.load( face_cascade_name )){ 
-		printf("--(!)Error loading\n"); 
-		return -1; 
+		cleanup(ERROR_LOAD_CASCADE);
+		return(ERROR_LOAD_CASCADE); 
 	}
 
 
 	//Check to see how many attached devices there are
 	if(rsCtx.get_device_count() == 0){
-		return EXIT_FAILURE;
+		cleanup(ERROR_NO_RS_DEVICES);
+		return(ERROR_NO_RS_DEVICES);
 	}
 
     	// Enable a single device
@@ -92,9 +114,8 @@ int main(int, char**) try{
 	//Initialize and quit if fails
 	retVal = libusb_init(&ctx);
 	if(retVal < 0){
-		cout << "Init Error " << retVal << endl;
-		delete[] data;
-		return(1);
+		cleanup(ERROR_INIT_USB);
+		return(ERROR_INIT_USB);
 	}
 
 	//Set the libusb library to verbose mode
@@ -103,18 +124,17 @@ int main(int, char**) try{
 	//Get a list of length cnt of all the USB devices, or error
 	cnt = libusb_get_device_list(ctx, &devs);
 	if(cnt < 0){
-		cout << "Get Device Error" << endl;
+		cleanup(ERROR_NO_USB_DEVICES);
+		return(ERROR_NO_USB_DEVICES);
 	}
 
 
 	//Attempt to open communication
 	dev_handle = libusb_open_device_with_vid_pid(ctx, vid, pid);
 	if(dev_handle == NULL){
-		cout << "Cannot open communication with board" << endl;
+		cleanup(ERROR_OPEN_USB);
+		return(ERROR_OPEN_USB);
 	}
-
-	//Free the device list, it is no longer needed
-	libusb_free_device_list(devs, 1);
 	
 
 	//Check for a kernal driver attached to device
@@ -129,7 +149,8 @@ int main(int, char**) try{
 	//Claim the device interface for IO, boards tend to have just 1
 	retVal = libusb_claim_interface(dev_handle, iid);
 	if(retVal < 0){
-		cout << "Cannot claim interface" << endl;
+		cleanup(ERROR_CLAIM_INTERFACE);
+		return(ERROR_CLAIM_INTERFACE);
 	}
 
 
@@ -149,7 +170,6 @@ int main(int, char**) try{
 		}
 		cout << "Read: " << data[0] << endl;
 	}
-	delete[] data;
 
 
 
@@ -225,17 +245,49 @@ int main(int, char**) try{
 		cout << "Cannot release interface" << endl;
 		return(1);
 	}
-	
-	//All these guys are void
-	libusb_close(dev_handle);
-	libusb_exit(ctx);
 
-
-	return(0);
+	cleanup(NO_ERROR);
+	return(NO_ERROR);
 }
 
 catch(const rs::error & e){
 	printf("rs::error was thrown when calling %s(%s):\n", e.get_failed_function().c_str(), 			e.get_failed_args().c_str());
     	printf("    %s\n", e.what());
-    	return EXIT_FAILURE;
+    	return ERROR_RS_ERROR;
 }
+
+
+
+
+
+//Function that works off of the return code enum
+//Since different variables are not initialized 
+//Until later, closing unitialized vairables can cause
+//Errors or undefined behavior
+void cleanup(int retCode){
+	switch(retCode){
+		case(NO_ERROR):		
+		case(ERROR_CLAIM_INTERFACE):
+			libusb_close(dev_handle);
+			libusb_free_device_list(devs, 1);
+		case(ERROR_OPEN_USB):
+		case(ERROR_NO_USB_DEVICES):			
+		case(ERROR_INIT_USB):
+			libusb_exit(ctx);
+		case(ERROR_NO_RS_DEVICES):
+		case(ERROR_LOAD_CASCADE):
+			delete[] data;
+		
+			break;
+	}
+}
+
+
+
+
+
+
+
+
+
+
