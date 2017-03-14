@@ -35,8 +35,20 @@ int sineArraySize;
 int increment = 0;
 
 int count;
+int countB;
+
+int countU = 1000;
+
+long pInt;
+int x = 1; 
+int input;
+
+int dX = -100;
+int dY = -100;
 
 void setup() {
+  Serial.begin(9600);
+  
   pinMode(IN_A1, OUTPUT); 
   pinMode(IN_A2, OUTPUT); 
   pinMode(IN_A3, OUTPUT); 
@@ -66,22 +78,57 @@ void setup() {
 
   sineArraySize--; // Convert from array Size to last PWM array number
 
-  count = 0;
+  countB = 0;
 
 }
 
 void loop() {
   
 
-    if (count < 1800) { 
-        rotateMotor_C(87, 1);
-        count++;
+  if(Serial.available()>0)
+    {
+         input = Serial.peek();
+         if (input == ',') x = 1;
+         else if (input == '.') x = 0;
+         pInt = Serial.parseInt();
+         if (x) {
+           Serial.print("X:");
+           dX = pInt;
+         }
+         else {
+           Serial.print("Y: ");
+           dY = pInt;
+         }
+         Serial.println(pInt);  
+         countU = 0;
+    }
+    else countU++;
+  
+    if (countB < 1800) { 
+        //rotateMotor_A(86, 1);
+        rotateMotor_B(86, 1);
+        //rotateMotor_C(86, 1);
+        countB++;
     }
     
     else {
-        rotateMotor_C(0, 1); 
+        //rotateMotor_A(0, 1);  
+        rotateMotor_B(0, 1);
+        //rotateMotor_C(0, 1); 
+    }
+    if (countU < 1000){
+      if (dX > 5) rotateMotor_A(95, 0);
+      else if (dX < -5) rotateMotor_A(95, 1);
+      else rotateMotor_A(0, 1);
+      
+      if (dY > 5) rotateMotor_C(95, 0);
+      else if (dY < -5) rotateMotor_C(95, 1);
+      else rotateMotor_C(0, 1);
     }
     
+    
+    if (countU >= 5000) countU = 1000;
+    count++;
     delay(1);
 
 }
