@@ -113,7 +113,7 @@ int main(int, char**) try{
     	rs::device * cam = rsCtx.get_device(0);
 
 	//Enable the color stream and start camera
-	cam->enable_stream(rs::stream::depth, 640, 480, rs::format::z16, 60);
+	dev->enable_stream(rs::stream::depth, 640, 480, rs::format::z16, 60);
 	cam->enable_stream(rs::stream::color, 640, 480, rs::format::rgb8, 60);
 	cam->start();
 
@@ -197,7 +197,7 @@ int main(int, char**) try{
 		equalizeHist( frame_gray, frame_gray );
 
 		//new
-		Mat depth(2, matSize, CV_16U, (uchar *) cam->get_frame_data(rs::stream::depth));
+		Mat depth(2, matSize, CV_16U, (uchar *) dev->get_frame_data(rs::stream::depth));
 		sub = frame_gray;
 
 		//new face detection REMEMBER faceFound
@@ -358,7 +358,7 @@ int main(int, char**) try{
 			angleX = (faceCX - 320) * 0.109375;//convert position on X axis to angle of deflection from center point
 			angleY = (faceCY - 240) * 0.089583 * -1;//convert position on Y axis to angle of deflection from center point			
 
-			dist = depth.at<unsigned int16_t>(faceY, faceX);
+			dist = dpt.at<unsigned int16_t>(faceY, faceX);
 		
 			faceFound = true;
 			//printf("angleX: %f angleY: %f\n", angleX, angleY);
@@ -406,7 +406,7 @@ int main(int, char**) try{
 				cout << "Write failed" << endl;
 			} 
 		}
-
+		
 	
 		//Show the frame, not actually important
 		imshow("Color", color);

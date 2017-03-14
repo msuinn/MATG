@@ -10,9 +10,9 @@ using namespace std;
 
 
 typedef struct Vector{
-	float angleX;
-	float angleY;
-	float magnitude;
+	int angleX;
+	int angleY;
+	int magnitude;
 }Vector; 
 
 
@@ -64,35 +64,7 @@ int main(int, char**) try{
 
 	Mat sub;
 	
-
-	//usb variables
-	libusb_device **devs;
-	libusb_context *ctx = NULL;
-	libusb_device_handle *dev_handle;
-	int retVal;
-	ssize_t cnt;
-	//Vendor ID of the device, should change per board
-	const int vid = 10755;
-	//Product ID of the device, should change per board
-	const int pid = 67;
-	//The interface ID, chosen as this one has 2 endpoints
-	const int iid = 1;
-	//Max size of read data transfer
-	const int dataSize = 1;
-	//Data pointer for transfer
-	unsigned char *data = new unsigned char[dataSize];
-	//Which interface endpoint to use, found in EP Address field
-	const int epAddr = 4;
-	//The address of the read endpoint
-	const int inEp = 131;
-	//How many bytes are written in bulk transfer
-	int bytesWritten = 0;
-	//Data to send
 	Vector dataStruct;
-	//Pointer to data to send
-	unsigned char *structPtr;
-
-
 
 	/*******************************************************
 		Initialize Camera/Face Recognition
@@ -121,69 +93,7 @@ int main(int, char**) try{
 	/*******************************************************
 			Open USB Connection
 	*******************************************************/
-	//Initialize and quit if fails
-	retVal = libusb_init(&ctx);
-	if(retVal < 0){
-		cout << "Init Error " << retVal << endl;
-		delete[] data;
-		return(1);
-	}
-
-	//Set the libusb library to verbose mode
-	libusb_set_debug(ctx, 3);
-
-	//Get a list of length cnt of all the USB devices, or error
-	cnt = libusb_get_device_list(ctx, &devs);
-	if(cnt < 0){
-		cout << "Get Device Error" << endl;
-	}
-
-
-	//Attempt to open communication
-	dev_handle = libusb_open_device_with_vid_pid(ctx, vid, pid);
-	if(dev_handle == NULL){
-		cout << "Cannot open communication with board" << endl;
-	}
-
-	//Free the device list, it is no longer needed
-	libusb_free_device_list(devs, 1);
-	
-
-	//Check for a kernal driver attached to device
-	//If a driver is attached, interface cannot be claimed and no IO
-	if(libusb_kernel_driver_active(dev_handle, iid) == 1){
-		cout << "Kernal driver present" << endl;
-		if(libusb_detach_kernel_driver(dev_handle, iid) == 0){
-					cout << "Kernal driver detached" << endl;
-		}	
-	}
-
-	//Claim the device interface for IO, boards tend to have just 1
-	retVal = libusb_claim_interface(dev_handle, iid);
-	if(retVal < 0){
-		cout << "Cannot claim interface" << endl;
-	}
-
-
-
-
-	/*******************************************************
-		    Wait for Motor Control Board
-	*******************************************************/
-	//Sometimes boards start up in odd order, so wait for 's'
-	//from motor board before starting
-	data[0] = 'a';
-	while(data[0] != 's'){
-		retVal = libusb_bulk_transfer(dev_handle, (inEp | LIBUSB_ENDPOINT_IN), data, 1, 				&bytesWritten, 0);
-		if(retVal != 0)	{
-			cout << "Read failed" << endl;
-			cout << libusb_error_name(retVal) << endl;
-		}
-		cout << "Read: " << data[0] << endl;
-	}
-	delete[] data;
-
-
+    	FILE *file;
 
 	/*******************************************************
 		    	    Main Loop
@@ -200,12 +110,10 @@ int main(int, char**) try{
 		Mat depth(2, matSize, CV_16U, (uchar *) cam->get_frame_data(rs::stream::depth));
 		sub = frame_gray;
 
-		//new face detection REMEMBER faceFound
-		
+		//new face detection REMEMBER faceFound	
 		
 		//initial detection search whole mat
 		if ((subX == -1) && (subY == -1)) {
-			//printf("looking in 1\n");
 			face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 			for (size_t i = 0; i < faces.size(); i++)
 			{
@@ -229,8 +137,6 @@ int main(int, char**) try{
 
 						faceW = faces[i].width;
 						faceH = faces[i].height;
-
-						//printf("Detected in first!!!!\n");
 
 						loopCount = 0;
 
@@ -271,11 +177,12 @@ int main(int, char**) try{
 				Rect roi1(subX, subY, subW, subH);
 				roi = roi1;
 				rectangle(color, roi, Scalar(1, 1, 255), 3);
+
 			}
 		}
 
 		else {
-			//printf("looking in 2\n");
+
 			Mat sub1(frame_gray, roi);
 			sub = sub1;
 			face_cascade.detectMultiScale(sub, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
@@ -381,33 +288,29 @@ int main(int, char**) try{
 			loopCount2 = 0;
 			loopCount3 = 0;
 			
-			//printf("LoopCount: %d RESET\n", loopCount);
-		}	
-		
-		
-		
-		
+		}			
 		
 		//Send the data if there was a face, otherwise nothing
 		if(faceFound){
 			faceFound = false;
 
 			//Calculate the vector components
-			dataStruct.magnitude = dist;
-			dataStruct.angleX = angleX;
-			dataStruct.angleY = angleY;
+			dataStruct.magnitude = (int)dist;
+			dataStruct.angleX = (int)angleX;
+			dataStruct.angleY = (int)angleY;
+			
+			file = fopen("/dev/ttyACM0","w");  //Opening device file
+			
+			fprintf(file,"%d",dataStruct.angleX); //Writing to the file			
+			fprintf(file,"%c",'.'); //To separate digits
 
-			//Cast data pointer to expected type
-			structPtr = reinterpret_cast<unsigned char *>(&dataStruct);
+			fprintf(file,"%d",dataStruct.angleY); //Writing to the file			
+			fprintf(file,"%c",','); //To separate digits
 
-			//Write the data
-			retVal = libusb_bulk_transfer(dev_handle, (epAddr | LIBUSB_ENDPOINT_OUT), structPtr, sizeof(Vector), &bytesWritten, 0);
-			if(retVal != 0 || bytesWritten != sizeof(Vector)){
-				cout << "Write failed" << endl;
-			} 
+			fclose(file);
+			
 		}
 
-	
 		//Show the frame, not actually important
 		imshow("Color", color);
 		
@@ -420,20 +323,7 @@ int main(int, char**) try{
 	}
 	
 
-	/*******************************************************
-		    	    Clean Up
-	*******************************************************/
-	//For whatever reasone, this is the only clean up that can fail
-	retVal = libusb_release_interface(dev_handle, 1);
-	if(retVal!=0) {
-		cout << "Cannot release interface" << endl;
-		return(1);
-	}
-	
-	//All these guys are void
-	libusb_close(dev_handle);
-	libusb_exit(ctx);
-
+	fclose(file);
 
 	return(0);
 }
