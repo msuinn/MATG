@@ -10,10 +10,13 @@ using namespace std;
 
 
 typedef struct Vector{
-	float angleX;
-	float angleY;
-	float magnitude;
+	int angleX;
+	int angleY;
+	int magnitude;
 }Vector; 
+
+#define WIDTH 640
+#define HEIGHT 480
 
 
 int main(int, char**) try{
@@ -22,7 +25,7 @@ int main(int, char**) try{
  	CascadeClassifier face_cascade;
 
 	//opencv variables
-	const int matSize[2]={480,640};
+	const int matSize[2]={HEIGHT,WIDTH};
 	const Point center(matSize[1]/2, matSize[0]/2);
 	vector<Rect> faces;
 	Mat color(2, matSize, CV_8UC3);
@@ -82,33 +85,19 @@ int main(int, char**) try{
 	//The submat
 	Mat sub;
 	
-
-	//usb variables
-	libusb_device **devs;
-	libusb_context *ctx = NULL;
-	libusb_device_handle *dev_handle;
-	int retVal;
-	ssize_t cnt;
-	//Vendor ID of the device, should change per board
-	const int vid = 10755;
-	//Product ID of the device, should change per board
-	const int pid = 67;
-	//The interface ID, chosen as this one has 2 endpoints
-	const int iid = 1;
-	//Max size of read data transfer
-	const int dataSize = 1;
-	//Data pointer for transfer
-	unsigned char *data = new unsigned char[dataSize];
-	//Which interface endpoint to use, found in EP Address field
-	const int epAddr = 4;
-	//The address of the read endpoint
-	const int inEp = 131;
-	//How many bytes are written in bulk transfer
-	int bytesWritten = 0;
-	//Data to send
 	Vector dataStruct;
-	//Pointer to data to send
-	unsigned char *structPtr;
+
+
+
+
+
+
+
+	//Point2d pt;
+	//bool first = true;
+	//Mat test1, test2;
+
+
 
 
 
@@ -139,69 +128,7 @@ int main(int, char**) try{
 	/*******************************************************
 			Open USB Connection
 	*******************************************************/
-	//Initialize and quit if fails
-	retVal = libusb_init(&ctx);
-	if(retVal < 0){
-		cout << "Init Error " << retVal << endl;
-		delete[] data;
-		return(1);
-	}
-
-	//Set the libusb library to verbose mode
-	libusb_set_debug(ctx, 3);
-
-	//Get a list of length cnt of all the USB devices, or error
-	cnt = libusb_get_device_list(ctx, &devs);
-	if(cnt < 0){
-		cout << "Get Device Error" << endl;
-	}
-
-
-	//Attempt to open communication
-	dev_handle = libusb_open_device_with_vid_pid(ctx, vid, pid);
-	if(dev_handle == NULL){
-		cout << "Cannot open communication with board" << endl;
-	}
-
-	//Free the device list, it is no longer needed
-	libusb_free_device_list(devs, 1);
-	
-
-	//Check for a kernal driver attached to device
-	//If a driver is attached, interface cannot be claimed and no IO
-	if(libusb_kernel_driver_active(dev_handle, iid) == 1){
-		cout << "Kernal driver present" << endl;
-		if(libusb_detach_kernel_driver(dev_handle, iid) == 0){
-					cout << "Kernal driver detached" << endl;
-		}	
-	}
-
-	//Claim the device interface for IO, boards tend to have just 1
-	retVal = libusb_claim_interface(dev_handle, iid);
-	if(retVal < 0){
-		cout << "Cannot claim interface" << endl;
-	}
-
-
-
-
-	/*******************************************************
-		    Wait for Motor Control Board
-	*******************************************************/
-	//Sometimes boards start up in odd order, so wait for 's'
-	//from motor board before starting
-	data[0] = 'a';
-	while(data[0] != 's'){
-		retVal = libusb_bulk_transfer(dev_handle, (inEp | LIBUSB_ENDPOINT_IN), data, 1, &bytesWritten, 0);
-		if(retVal != 0)	{
-			cout << "Read failed" << endl;
-			cout << libusb_error_name(retVal) << endl;
-		}
-		cout << "Read: " << data[0] << endl;
-	}
-	delete[] data;
-
-
+    	FILE *file;
 
 	/*******************************************************
 		    	    Main Loop
@@ -218,18 +145,17 @@ int main(int, char**) try{
 		Mat depth(2, matSize, CV_16U, (uchar *) cam->get_frame_data(rs::stream::depth));
 		sub = frame_gray;
 
-		//new face detection REMEMBER faceFound
+		//new face detection REMEMBER faceFound	
 		
-		
-		//initial detection search whole mat
-		//Variables initialized to -1 to indicate face not found 
+		/*******************************************************
+		    	    	Initial Search, Entire Frame
+		*******************************************************/
+		//initial detection search whole mat, -1 indicates not found
 		if ((subX == -1) && (subY == -1)) {
-			//Look for the faces
 			face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
-			//For each one of the found faces
 			for (size_t i = 0; i < faces.size(); i++)
 			{
-				//If there was no face location stored, should only occur once, store values
+				//If no face found yet, store the location and size of first found
 				if ((faceX == -1) && (faceY == -1)) {
 					faceX = faces[i].x;
 					faceY = faces[i].y;
@@ -237,13 +163,15 @@ int main(int, char**) try{
 					faceH = faces[i].height;
 
 				}
-				//Otherwise 
+				//Otherwise, compare the location of the current face to the stored one
 				else {
 					nfaceX = faces[i].x;
 					nfaceY = faces[i].y;
 					dfaceX = abs(faceX - nfaceX);
 					dfaceY = abs(faceY - nfaceY);
-
+					
+					//If the current face is near the stored value
+					//modify counters and store current face
 					if ((dfaceX < 100) && (dfaceY < 100)) {
 						faceX = nfaceX;
 						faceY = nfaceY;
@@ -251,16 +179,17 @@ int main(int, char**) try{
 						faceW = faces[i].width;
 						faceH = faces[i].height;
 
-						//printf("Detected in first!!!!\n");
-
+						//Face has been found so zero iterations since last face
 						loopCount = 0;
-
+						//Face has been found near previous one, so zero iterations since last face in sub
 						loopCount3 = 0;
-
+						//Face has been found inside submat, so increment number of frames
 						loopCount2++;						
 
-					}					
+					}
+					//Otherwise, face was too far away, so out of range faces increments					
 					else {
+						//If there has been too many out of range faces, clear found counter
 						loopCount3++;
 						if (loopCount3 >= 5) loopCount2 = 0;
 					}
@@ -268,6 +197,7 @@ int main(int, char**) try{
 				}
 
 			}
+			//If the face has been found locally in 2 or more consecutive frames, setup submat
 			if (loopCount2 >= 2) {
 				subX = faceX - 50;
 				subY = faceY - 50;
@@ -278,6 +208,7 @@ int main(int, char**) try{
 				subX2 = subX + subW;
 				subY2 = subY + subH;
 
+				//Make sure that the submat is within the frame boundaries
 				if (subX < 0) subX = 0;
 				if (subY < 0) subY = 0;
 				if (subX2 >= 640) {
@@ -289,40 +220,74 @@ int main(int, char**) try{
 					subH = subY2 - subY;
 				}
 
+				//Draw rectangle around submat
 				Rect roi1(subX, subY, subW, subH);
 				roi = roi1;
 				rectangle(color, roi, Scalar(1, 1, 255), 3);
+
 			}
 		}
 
+		/*******************************************************
+		    	    	Found Face, Search Submat
+		*******************************************************/
+		//Case where submat has been initialized
 		else {
-			//printf("looking in 2\n");
+			//Only look for faces in the submat
 			Mat sub1(frame_gray, roi);
 			sub = sub1;
 			face_cascade.detectMultiScale(sub, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
+			//For each face found in submat
 			for (size_t i = 0; i < faces.size(); i++) {
-				
+				//Store location of new face relative to larger mat
 				nfaceX = subX + faces[i].x;
 				nfaceY = subY + faces[i].y;
 				dfaceX = abs(faceX - nfaceX);
 				dfaceY = abs(faceY - nfaceY);
 				
+				//If the face is relatively near the last, store value and new submat
 				if ((dfaceX > 2) && (dfaceY > 2)) {
+					//Store face value
 					faceX = nfaceX;
 					faceY = nfaceY;
 					faceW = faces[i].width;
 					faceH = faces[i].height;
 
-					subX = faceX - 50;
-					subY = faceY - 50;
+					printf("FaceX: %d\n",faceX);
+					printf("FaceY: %d\n",faceY); 					
 
-					subW = faceW + 100;
-					subH = faceH + 100;
+					//Stretch submat to account for motion
+					int sfaceX = 320 - (faceW/2);
+					int sfaceY = 240 - (faceH/2);
+ 					
+					if (faceX > sfaceX){
+						sfaceX = (faceX - sfaceX)/3;
+											
+					}
+					else if (faceX < sfaceX){
+						sfaceX = (sfaceX - faceX)/3;					
+					}
+					
+					if (faceY > sfaceY){
+						sfaceY = (faceY - sfaceY)/3;
+											
+					}
+					else if (faceY < sfaceY){
+						sfaceY = (sfaceY - faceY)/3;					
+					}					
+
+					//Setup the submat dimensions
+					subX = faceX - 50 - sfaceX;
+					subY = faceY - 50 - sfaceY;
+
+					subW = faceW + 100 + sfaceX;
+					subH = faceH + 100 + sfaceY;
 
 					subX2 = subX + subW;
 					subY2 = subY + subH;
 
+					//Make sure that the submat is still within mat
 					if (subX < 0) subX = 0;
 					if (subY < 0) subY = 0;
 					if (subX2 >= 640) {
@@ -336,14 +301,17 @@ int main(int, char**) try{
  
 				}
 				
+				//Set counter since last face found to zero
 				loopCount = 0;
 				
 			}
 		
+			//Create the rectangle around the submat
 			Rect roi1(subX, subY, subW, subH);
 			roi = roi1;
 			rectangle(color, roi, Scalar(1, 255, 1), 3);
 			
+			//If the face has NOT been found for 40 consecutive frames, restart search
 			if (loopCount >= 40) {
 				subX = -1;
 				subY = -1;
@@ -366,6 +334,7 @@ int main(int, char**) try{
 		
 		}
 		
+		//If a face has been found, draw arrow to face
 		if ((subX != -1) && (subY != -1)) {
 			
 			faceCX = faceX + faceW*0.5;
@@ -385,6 +354,7 @@ int main(int, char**) try{
 			//printf("angleX: %f angleY: %f\n", angleX, angleY);
 		}
 		
+		//If the face has NOT been found for 40 consecutive frames, restart search again?
 		if (loopCount >= 40) { //adjust how long the arrow stays without detecting a face
 			subX = -1;
 			subY = -1;
@@ -402,59 +372,66 @@ int main(int, char**) try{
 			loopCount2 = 0;
 			loopCount3 = 0;
 			
-			//printf("LoopCount: %d RESET\n", loopCount);
-		}	
-		
-		
-		
-		
+		}			
 		
 		//Send the data if there was a face, otherwise nothing
 		if(faceFound){
 			faceFound = false;
 
 			//Calculate the vector components
-			dataStruct.magnitude = dist;
-			dataStruct.angleX = angleX;
-			dataStruct.angleY = angleY;
+			dataStruct.magnitude = (int)dist;
+			dataStruct.angleX = (int)angleX;
+			dataStruct.angleY = (int)angleY;
+			
+			file = fopen("/dev/ttyACM0","w");  //Opening device file
+			
+			fprintf(file,"%d",dataStruct.angleX); //Writing to the file			
+			fprintf(file,"%c",'.'); //To separate digits
 
-			//Cast data pointer to expected type
-			structPtr = reinterpret_cast<unsigned char *>(&dataStruct);
+			fprintf(file,"%d",dataStruct.angleY); //Writing to the file			
+			fprintf(file,"%c",','); //To separate digits
 
-			//Write the data
-			retVal = libusb_bulk_transfer(dev_handle, (epAddr | LIBUSB_ENDPOINT_OUT), structPtr, sizeof(Vector), &bytesWritten, 0);
-			if(retVal != 0 || bytesWritten != sizeof(Vector)){
-				cout << "Write failed" << endl;
-			} 
+			fclose(file);
+			
 		}
 
-	
 		//Show the frame, not actually important
 		imshow("Color", color);
 		
 		//increment the loop counter
 		loopCount++;
+
+
+
+
+		
+		/*
+
+		if(first){
+			cvtColor( color, test1, CV_BGR2GRAY);
+			test1.convertTo(test1, CV_32FC1, 1.0/255.0);
+			test2 = test1;
+			first = false;
+		} else{
+			cvtColor( color, test1, CV_BGR2GRAY);
+			test1.convertTo(test1, CV_32FC1, 1.0/255.0);
+			pt = phaseCorrelate(test1, test2);
+		}
+		
+		test2 = test1;
+		cout << "POINT: " << 100*pt << endl;
+*/
+
+
+
 		
 		if(waitKey(30) == 'c'){
 			break;
 		}
 	}
-	
 
-	/*******************************************************
-		    	    Clean Up
-	*******************************************************/
-	//For whatever reasone, this is the only clean up that can fail
-	retVal = libusb_release_interface(dev_handle, 1);
-	if(retVal!=0) {
-		cout << "Cannot release interface" << endl;
-		return(1);
-	}
-	
-	//All these guys are void
-	libusb_close(dev_handle);
-	libusb_exit(ctx);
 
+	fclose(file);
 
 	return(0);
 }

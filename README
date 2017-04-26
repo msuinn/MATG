@@ -1,0 +1,7 @@
+Steps to start the MATG
+
+1. Flash the arduino with the current code (matg-cmmc)
+2. Open the terminal in arduino(if you do this later the device resets)
+3. 8-12V power to the breadboard rail to provide power to the motor controllers
+4. Run the NGB executable
+5. Deal with the bugs(or fix them)

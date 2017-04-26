@@ -15,6 +15,9 @@ typedef struct Vector{
 	int magnitude;
 }Vector; 
 
+#define WIDTH 640
+#define HEIGHT 480
+
 
 int main(int, char**) try{
 	//haarcascade variables
@@ -22,7 +25,7 @@ int main(int, char**) try{
  	CascadeClassifier face_cascade;
 
 	//opencv variables
-	const int matSize[2]={480,640};
+	const int matSize[2]={HEIGHT,WIDTH};
 	const Point center(matSize[1]/2, matSize[0]/2);
 	vector<Rect> faces;
 	Mat color(2, matSize, CV_8UC3);
@@ -31,40 +34,72 @@ int main(int, char**) try{
 	namedWindow("Color", 1);
 	bool faceFound = false;
 	
-	//added these variables
+	//Face position and size, -1 indicates face not found
 	int faceX = -1;
 	int faceY = -1;
 	int faceW = -1;
 	int faceH = -1;
 
+	//Top left corner of the submat around last location of face
 	int subX = -1;
 	int subY = -1;
 
+	//Size of submat
 	int subW = -1;
 	int subH = -1;
 	
+	//Opposite corner of submat, for submat near edges of screen
 	int subX2 = -1;
 	int subY2 = -1;
 
+	//nFace is used to calculate the difference (dFace) between the last
+	//frame (face) and the current one (nFace) 
 	int nfaceX = 0;
 	int nfaceY = 0;
 	int dfaceX = 0;
 	int dfaceY = 0;
 
+	//FaceC is the center of the fase after scaling
 	int faceCX = -1;
 	int faceCY = -1;
+
+	//Deflection angles from centerpoint being sent to motor control board
 	double angleX = 0.0;
 	double angleY = 0.0;
+
+	//Needed to communicate with ball bot, maybe
 	double dist = 0.0;
+
+	//loopCount increments with each loop, but is set to zero when a face
+	//is found in the submat, when it reaches a threshold, program searches
+	//entire mat 
 	int loopCount = 0;
+	//Number of times that a face has been recognised in the same region
 	int loopCount2 = 0;
+	//Number of times that a face was found outside of the ROI
 	int loopCount3 = 0;
 
+	//The region of interest that is used to create the submat
 	Rect roi;
-
+	
+	//The submat
 	Mat sub;
 	
 	Vector dataStruct;
+
+
+
+
+
+
+
+	Point2d pt;
+	bool first = true;
+	Mat test1, test2;
+
+
+
+
 
 	/*******************************************************
 		Initialize Camera/Face Recognition
@@ -112,12 +147,15 @@ int main(int, char**) try{
 
 		//new face detection REMEMBER faceFound	
 		
-		//initial detection search whole mat
+		/*******************************************************
+		    	    	Initial Search, Entire Frame
+		*******************************************************/
+		//initial detection search whole mat, -1 indicates not found
 		if ((subX == -1) && (subY == -1)) {
 			face_cascade.detectMultiScale(frame_gray, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 			for (size_t i = 0; i < faces.size(); i++)
 			{
-
+				//If no face found yet, store the location and size of first found
 				if ((faceX == -1) && (faceY == -1)) {
 					faceX = faces[i].x;
 					faceY = faces[i].y;
@@ -125,12 +163,15 @@ int main(int, char**) try{
 					faceH = faces[i].height;
 
 				}
+				//Otherwise, compare the location of the current face to the stored one
 				else {
 					nfaceX = faces[i].x;
 					nfaceY = faces[i].y;
 					dfaceX = abs(faceX - nfaceX);
 					dfaceY = abs(faceY - nfaceY);
-
+					
+					//If the current face is near the stored value
+					//modify counters and store current face
 					if ((dfaceX < 100) && (dfaceY < 100)) {
 						faceX = nfaceX;
 						faceY = nfaceY;
@@ -138,14 +179,17 @@ int main(int, char**) try{
 						faceW = faces[i].width;
 						faceH = faces[i].height;
 
+						//Face has been found so zero iterations since last face
 						loopCount = 0;
-
+						//Face has been found near previous one, so zero iterations since last face in sub
 						loopCount3 = 0;
-
+						//Face has been found inside submat, so increment number of frames
 						loopCount2++;						
 
-					}					
+					}
+					//Otherwise, face was too far away, so out of range faces increments					
 					else {
+						//If there has been too many out of range faces, clear found counter
 						loopCount3++;
 						if (loopCount3 >= 5) loopCount2 = 0;
 					}
@@ -153,6 +197,7 @@ int main(int, char**) try{
 				}
 
 			}
+			//If the face has been found locally in 2 or more consecutive frames, setup submat
 			if (loopCount2 >= 2) {
 				subX = faceX - 50;
 				subY = faceY - 50;
@@ -163,6 +208,7 @@ int main(int, char**) try{
 				subX2 = subX + subW;
 				subY2 = subY + subH;
 
+				//Make sure that the submat is within the frame boundaries
 				if (subX < 0) subX = 0;
 				if (subY < 0) subY = 0;
 				if (subX2 >= 640) {
@@ -174,6 +220,7 @@ int main(int, char**) try{
 					subH = subY2 - subY;
 				}
 
+				//Draw rectangle around submat
 				Rect roi1(subX, subY, subW, subH);
 				roi = roi1;
 				rectangle(color, roi, Scalar(1, 1, 255), 3);
@@ -181,25 +228,33 @@ int main(int, char**) try{
 			}
 		}
 
+		/*******************************************************
+		    	    	Found Face, Search Submat
+		*******************************************************/
+		//Case where submat has been initialized
 		else {
-
+			//Only look for faces in the submat
 			Mat sub1(frame_gray, roi);
 			sub = sub1;
 			face_cascade.detectMultiScale(sub, faces, 1.1, 2, 0 | CASCADE_SCALE_IMAGE, Size(30, 30));
 
+			//For each face found in submat
 			for (size_t i = 0; i < faces.size(); i++) {
-				
+				//Store location of new face relative to larger mat
 				nfaceX = subX + faces[i].x;
 				nfaceY = subY + faces[i].y;
 				dfaceX = abs(faceX - nfaceX);
 				dfaceY = abs(faceY - nfaceY);
 				
+				//If the face is relatively near the last, store value and new submat
 				if ((dfaceX > 2) && (dfaceY > 2)) {
+					//Store face value
 					faceX = nfaceX;
 					faceY = nfaceY;
 					faceW = faces[i].width;
 					faceH = faces[i].height;
 
+					//Setup the submat dimensions
 					subX = faceX - 50;
 					subY = faceY - 50;
 
@@ -209,6 +264,7 @@ int main(int, char**) try{
 					subX2 = subX + subW;
 					subY2 = subY + subH;
 
+					//Make sure that the submat is still within mat
 					if (subX < 0) subX = 0;
 					if (subY < 0) subY = 0;
 					if (subX2 >= 640) {
@@ -222,14 +278,17 @@ int main(int, char**) try{
  
 				}
 				
+				//Set counter since last face found to zero
 				loopCount = 0;
 				
 			}
 		
+			//Create the rectangle around the submat
 			Rect roi1(subX, subY, subW, subH);
 			roi = roi1;
 			rectangle(color, roi, Scalar(1, 255, 1), 3);
 			
+			//If the face has NOT been found for 40 consecutive frames, restart search
 			if (loopCount >= 40) {
 				subX = -1;
 				subY = -1;
@@ -252,6 +311,7 @@ int main(int, char**) try{
 		
 		}
 		
+		//If a face has been found, draw arrow to face
 		if ((subX != -1) && (subY != -1)) {
 			
 			faceCX = faceX + faceW*0.5;
@@ -271,6 +331,7 @@ int main(int, char**) try{
 			//printf("angleX: %f angleY: %f\n", angleX, angleY);
 		}
 		
+		//If the face has NOT been found for 40 consecutive frames, restart search again?
 		if (loopCount >= 40) { //adjust how long the arrow stays without detecting a face
 			subX = -1;
 			subY = -1;
@@ -316,12 +377,36 @@ int main(int, char**) try{
 		
 		//increment the loop counter
 		loopCount++;
+
+
+
+
+		
+		
+		if(first){
+			cvtColor( color, test1, CV_BGR2GRAY);
+			test1.convertTo(test1, CV_32FC1, 1.0/255.0);
+			test2 = test1;
+			first = false;
+		} else{
+			cvtColor( color, test1, CV_BGR2GRAY);
+			test1.convertTo(test1, CV_32FC1, 1.0/255.0);
+			pt = phaseCorrelate(test1, test2);
+		}
+		
+		test2 = test1;
+		cout << "POINT: " << 100*pt << endl;
+
+
+
+
+
 		
 		if(waitKey(30) == 'c'){
 			break;
 		}
 	}
-	
+
 
 	fclose(file);
 

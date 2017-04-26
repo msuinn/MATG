@@ -119,15 +119,28 @@ void loop() {
         //rotateMotor_C(0, 1); 
     }
     if (countU < 1000){
-      if (dX > 5) rotateMotor_A(97, 0);
-      else if (dX < -5) rotateMotor_A(97, 1);
+      if (dX > 25) rotateMotor_A(100, 0);
+      else if (dX > 20) rotateMotor_A(99, 0);
+      else if (dX > 15) rotateMotor_A(98, 0);
+      else if (dX > 10) rotateMotor_A(97, 0);
+      else if (dX > 5) rotateMotor_A(96, 0);
+      
+      else if (dX < -25) rotateMotor_A(100, 1);
+      else if (dX < -20) rotateMotor_A(99, 1);
+      else if (dX < -15) rotateMotor_A(98, 1);
+      else if (dX < -10) rotateMotor_A(97, 1);
+      else if (dX < -5) rotateMotor_A(96, 1);
       else rotateMotor_A(0, 1);
       
-      if (dY > 5) rotateMotor_C(97, 0);
-      else if (dY < -5) rotateMotor_C(97, 1);
+      if (dY > 15) rotateMotor_C(100, 0);
+      else if (dY > 10) rotateMotor_C(98, 0);
+      else if (dY > 5) rotateMotor_C(96, 0);
+      
+      else if (dY < -15) rotateMotor_C(100, 1);
+      else if (dY < -10) rotateMotor_C(98, 1);
+      else if (dY < -5) rotateMotor_C(96, 1);
       else rotateMotor_C(0, 1);
     }
-    
     
     if (countU > 5000) countU = 1000;
     count++;

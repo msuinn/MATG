@@ -1,3 +1,10 @@
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+  
+Adafruit_BNO055 bno = Adafruit_BNO055(55);
+
 const int IN_A1 = 2;
 const int IN_A2 = 3;
 const int IN_A3 = 5;
@@ -46,8 +53,22 @@ int input;
 int dX = 0;
 int dY = 0;
 
+double iX = 0;
+double iY = 0;
+double iZ = 0;
+
 void setup() {
   Serial.begin(9600);
+  
+  Serial.println("Orientation Sensor Test"); Serial.println("");
+  
+  /* Initialise the sensor */
+  if(!bno.begin())
+  {
+    /* There was a problem detecting the BNO055 ... check your connections */
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
   
   pinMode(IN_A1, OUTPUT); 
   pinMode(IN_A2, OUTPUT); 
@@ -81,58 +102,67 @@ void setup() {
   sineArraySize--; // Convert from array Size to last PWM array number
 
   countB = 0;
+  
+  delay(1000);
+    
+  bno.setExtCrystalUse(true);
 
 }
 
 void loop() {
   
-
-  if(Serial.available()>0)
-    {
-         input = Serial.peek();
-         if (input == ',') x = 1;
-         else if (input == '.') x = 0;
-         pInt = Serial.parseInt();
-         if (x) {
-           Serial.print("X:");
-           dX = pInt;
-         }
-         else {
-           Serial.print("Y: ");
-           dY = pInt;
-         }
-         Serial.println(pInt);  
-         countU = 0;
-    }
-    else countU++;
+  /* Get a new sensor event */ 
+  sensors_event_t event; 
+  bno.getEvent(&event);
   
-    if (countB < 1800) { 
-        //rotateMotor_A(86, 1);
-        rotateMotor_B(86, 1);
-        //rotateMotor_C(86, 1);
-        countB++;
-    }
-    
-    else {
+  /* Display the floating point data */
+  //Serial.print("X: ");
+  //Serial.print(event.orientation.x, 4);
+  //Serial.print("\tY: ");
+  //Serial.print(event.orientation.y, 4);
+  //Serial.print("\tZ: ");
+  //Serial.print(event.orientation.z, 4);
+  //Serial.println("");
+
+  /* Display the current temperature */
+int8_t temp = bno.getTemp();
+ 
+//Serial.print("Current Temperature: ");
+//Serial.print(temp);
+//Serial.println(" C");
+//Serial.println("");
+  iX = event.orientation.x;
+  iY = event.orientation.y;
+  iZ = event.orientation.z;
+  //Serial.println(iY);
+  if(iY < -5){
+    rotateMotor_B(100, 1);
+  }
+  else if (iY > 5){
+    rotateMotor_B(100, 0);
+  }
+  else {
         //rotateMotor_A(0, 1);  
         rotateMotor_B(0, 1);
         //rotateMotor_C(0, 1); 
     }
-    if (countU < 1000){
-      if (dX > 5) rotateMotor_A(97, 0);
-      else if (dX < -5) rotateMotor_A(97, 1);
-      else rotateMotor_A(0, 1);
-      
-      if (dY > 5) rotateMotor_C(97, 0);
-      else if (dY < -5) rotateMotor_C(97, 1);
-      else rotateMotor_C(0, 1);
+    
+  if(iZ < -5){
+    rotateMotor_C(100, 0);
+  }
+  else if (iZ > 5){
+    rotateMotor_C(100, 1);
+  }
+  else {
+        //rotateMotor_A(0, 1);  
+        rotateMotor_C(0, 1);
+        //rotateMotor_C(0, 1); 
     }
-    
-    
-    if (countU > 5000) countU = 1000;
-    count++;
-    delay(1);
+  
+  count++;
+  delay(1);
 
+    
 }
 
 void rotateMotor_A(int spd, int drctn) {
